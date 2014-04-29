@@ -12,10 +12,10 @@ this can be done on the command line or by running a server.
 
 From the root directory, type
 
-   ./bin/sbserver
+    ./bin/sbserver
 
 Then point your browser at URLs such as:
 
-  *http://localhost:9001/reactome/lego/109581
+ * http://localhost:9001/reactome/lego/109581
   
 Where 109581 is a reactome pathway ID
