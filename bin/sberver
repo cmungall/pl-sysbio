@@ -1,0 +1,2 @@
+#!/bin/sh
+swipl -g "[prolog/sysbio/sbserver],server."
