@@ -3,18 +3,28 @@
 /**
   * Extracts from BioPax3 into a GO instance graph
   *
+  * Note that most of this module is a generic RDF
+  * view serialization engine; may be separated out into
+  * a different project in the future.
+  *
+  * This only works on BioPax3
   * To convert from l2 to l3:
   *
   * java -Xmx1g -jar paxtools.jar toLevel3 input_l2.owl output_l3.owl
+  *
+  * It works best on Reactome flavors (because the use GO xrefs heavily)
+  *
   */
 
 :- module(bp2lego,
           [
+           convert_biopax_to_lego/2,
            materialize_views/0,
            materialize_views/1,
            materialize_views/2,
            extract_pathways/0,
-           vq/1
+           vq/1,
+           anonymize_non_processes/1
            ]).
 
 :- use_module(library(semweb/rdf_db)).
@@ -28,6 +38,7 @@ objectProperty(occurs_in).
 objectProperty(has_input).
 objectProperty(has_output).
 objectProperty(directly_provides_input_for).
+objectProperty(directly_inhibits).
 
 % ========================================
 % VIEW ENGINE
@@ -65,9 +76,12 @@ materialize_views :-
         rdf_retractall(_,_,_,lego),
         materialize_views(lego).
         
+%% materialize_views(+Graph,+IsFresh:boolean) is det
 %% materialize_views(+Graph) is det
 %
 % asserts all views (which should have been declared with <==/2) into Graph
+%
+% if IsFresh is true then clear G prior to materialization
 materialize_views(G) :-
         materialize_views(G,false).
 
@@ -103,9 +117,13 @@ assert_clist( (A,B), G ) :-
         assert_clist(A, G),
         assert_clist(B, G).
 
+assert_clist( rdf(Pred, Subj, Obj), G ) :-
+        assert_triple(Subj, Pred, Obj, G).
+
 assert_clist( Triple, G ) :-
         Triple =.. [Pred, Subj, Obj],
         assert_triple(Subj, Pred, Obj, G).
+
 
 %% assert_triple(+Subj, +Pred, +Obj, +Graph) is det
 % 
@@ -151,12 +169,14 @@ is_subterm_of(Sub, (_,B)) :-
 :- op(300, xfy, has_input).
 :- op(300, xfy, has_output).
 :- op(300, xfy, directly_provides_input_for).
+:- op(300, xfy, directly_inhibits).
 
 :- op(300, xfy, type).  % rdf:type
 
 %% default_triple(+S,+P,+O) is det
 %
 % triples to be asserted into every graph
+% TODO - put this into a separate ttl file?
 :- rdf_meta default_triple(r,r,r).
 :- rdf_meta default_predicate_property(r,t).
 default_triple(has_part:'', rdfs:subPropertyOf, mago:pathway_has).
@@ -310,6 +330,12 @@ Event directly_provides_input_for NextEvent
    biochemicalReaction(Event),
    biochemicalReaction(NextEvent).
 
+Event directly_inhibits NextEvent
+   <==
+   control(Event),
+   controlled(Event,NextEvent),
+   controlType(Event,literal(type(_,'INHIBITION'))).
+
    
 
 % ========================================
@@ -329,6 +355,13 @@ Event has_output M,
              ref_best_xref(Ref,MType).
 
 % TODO: cardinality
+
+% ========================================
+% metadata
+% ========================================
+
+rdf(S,rdfs:comment,O) <==
+   S displayName O.
 
              
 
@@ -454,4 +487,56 @@ extract_pathway(P) :-
                (   rdf_global_id(OPN:'',OP),
                    rdf_assert(OP,rdf:type,owl:'ObjectProperty',P))),
         extract_subgraph(P,lego,P).
+        
+% ========================================
+% post-processing
+% ========================================
+
+anonymize_non_processes(G):-
+        forall(rdf(S,P,O,G),
+               anonymize_non_process(S,P,O,G)).
+
+anonymize_non_process(S,P,O,G) :-
+        %is_process(S),
+        %\+ is_process(O),
+        anrel(P),
+        !,
+        anonymize(S,P,O,G).
+anonymize_non_process(_,_,_,_).
+
+anonymize(S,P,O,G) :-
+        rdf(O,rdf:type,OT,G),
+        debug(bp2lego,'Anonymizing: ~w ~w ~w',[S,P,O]),
+        !,
+        rdf_retractall(S,P,O,G),
+        rdf_bnode(X),
+        rdf_assert(S,rdf:type,X,G),
+        rdf_assert(X,rdf:type,owl:'Restriction',G),
+        rdf_assert(X,owl:onProperty,P,G),
+        rdf_assert(X,owl:someValuesFrom,OT,G).
+anonymize(_,_,_,_).
+
+:- rdf_meta anrel(r).
+anrel(occurs_in:'').
+anrel(enabled_by:'').
+
+% ========================================
+% top-level
+% ========================================
+
+convert_biopax_to_lego(Graph,IsFresh) :-
+        materialize_views(Graph,IsFresh),
+        anonymize_non_processes(Graph).
+
+
+/*
+is_process(X) :-
+        pathway(X).
+is_process(X) :-
+        rdf_reachable(P, has_part:'', X),
+        pathway(P).
+*/
+        
+        
+        
         

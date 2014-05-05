@@ -64,9 +64,11 @@ labels([H|T]) --> label(H),[' '],labels(T).
 props(P) --> w_enabled_by(P), w_occurs_in(P), w_io(P), w_next(P).
 
 w_enabled_by(P) --> {enabled_by(P,G)},!,[' enabled by:'],mol(G),[' '].
+w_enabled_by(P) --> {svf(P,enabled_by:'', G)},!,[' enabled by:'],label(G),[' '].
 w_enabled_by(_) --> [].
 
 w_occurs_in(P) --> {occurs_in(P,G)},!,[' occurs_in:'],types(G),[' '].
+w_occurs_in(P) --> {svf(P,occurs_in:'', G)},!,[' occurs in:'],label(G),[' '].
 w_occurs_in(_) --> [].
 
 w_next(P) --> {directly_provides_input_for(P,Q)},!,[' --> '],label(Q),[' '].

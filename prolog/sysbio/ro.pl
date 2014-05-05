@@ -2,6 +2,8 @@
 
 :- module(ro,
           [
+           svf/3,
+           
            op(400, xfy, (::)),
            (::)/2,
            op(300, xfy, part_of),
@@ -38,3 +40,6 @@ X has_output Y :- rdf(X,has_output:'',Y).
 X directly_provides_input_for Y :- rdf(X,directly_provides_input_for:'',Y).
 
 X part_of Y :: G :- rdf(X,part_of:'',Y,G).
+
+:- rdf_meta svf(r,r,r).
+svf(X,P,Y) :- rdf(X,rdf:type,N),rdf(N,owl:onProperty,P),rdf(N,owl:someValuesFrom,Y).

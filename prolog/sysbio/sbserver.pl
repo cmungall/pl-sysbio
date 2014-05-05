@@ -1,7 +1,19 @@
 /* -*- Mode: Prolog -*- */
 
 /**
-  * Server
+  * Systems Biology Server
+  *
+  * Currently this has a single function - to provide a service
+  * which given a reactome pathway ID will return a conversion of the
+  * biopax for that pathway into Lego OWL
+  *
+  * To initiate the server:
+  * ==
+  * ./bin/sbserver
+  * ==
+  *
+  * Then look on port 9001
+  *
   */
 
 :- module(sbserver,
@@ -18,6 +30,7 @@
 :- use_module(library(semweb/rdfs)).
 
 :- ensure_loaded('prolog/sysbio/bp2lego').
+:- ensure_loaded('prolog/sysbio/reactome_util').
 
 server :-
         server(9001).
@@ -25,39 +38,30 @@ server :-
 server(Port) :-
         debug(sbserver),
         debug(bp2lego),
+        debug(reactome),
         http_server(http_dispatch, [port(Port)]).
 
 % Example reactome/lego/109607
-:- http_handler(root(.), say_hi, []).
+:- http_handler(root(.), top_level, []).
 :- http_handler(root('reactome/lego/'), convert_reactome, [prefix]).
-
 
 convert_reactome(Request) :-
         format('Content-type: application/rdf+xml~n~n'),
         debug(sbserver,'Checking ~w',[Request]),
         member(path_info(ID),Request),
-        cvt(ID),
+        debug(sbserver,'ID ~w',[ID]),
+        remote_load_reactome(ID,[fresh(true),lego(lego),cleanup(true)]),
         concat_atom(['target/',ID,'.owl'],Path),
         rdf_save(Path,[graph(lego)]),
         rdf_retractall(_,_,_,lego),
         read_file_to_string(Path,Str,[]),
         write(Str).
 
+top_level(_) :-
+        format('Content-type: text/plain~n~n'),
+        format('Nothing to see here, move along...~n').
 
-cvt(ReactomeID) :-
-        atom_concat(
-                    'http://www.reactome.org/ReactomeRESTfulAPI/RESTfulWS/biopaxExporter/Level3/',
-                    ReactomeID,
-                    Path),
-        atom_concat(r,ReactomeID,SourceGraph),
-        debug(sbserver,'Loading from ~w',[Path]),
-        ensure_loaded(library(semweb/rdf_http_plugin)),
-        rdf_load(Path,[graph(SourceGraph), format(xml)]),
-        debug(sbserver,'Loading into ~w',[ReactomeID]),
-        %rdf_retractall(_,_,_,SourceGraph),
-        materialize_views(lego,true),
-        forall(rdf(S,P,O,G),
-               debug(dbserver,'[~w ~w ~w IN ~w]',[S,P,O,G])).
+        
 
 
 

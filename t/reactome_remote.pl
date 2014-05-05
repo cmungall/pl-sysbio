@@ -9,17 +9,13 @@
 
 :- ensure_loaded('prolog/sysbio/bp2lego').
 :- ensure_loaded('prolog/sysbio/lego_ns').
+:- ensure_loaded('prolog/sysbio/reactome_util').
 :- ensure_loaded('prolog/sysbio/render/sbtext').
 
-cvt(File,G) :-
+cvt(ID,G) :-
         rdf_load('ontologies/go.owl'),
-        atom_concat('t/data/',File,Path),
-        rdf_load(Path,[graph(test)]),
-        materialize_views(G,true),
-        debug(test,'Loaded',[]),
-        anonymize_non_processes(lego),
-        debug(test,'Anonymizied',[]).
-
+        remote_load_reactome(ID,[fresh(true),lego(G),cleanup(true)]),
+        debug(test,'Done',[]).
 
         
 
@@ -31,9 +27,8 @@ test(convert) :-
         debug(test),
         debug(sbtext),
         debug(bp2lego),
-        cvt('ExtrinsicApoptosis.ttl',lego),
-        %forall(rdf(S,P,O,lego),
-        %       w(S,P,O)),
+        debug(reactome),
+        cvt(109581,lego),
         check,
         debug(test,'rendering...',[]),
         write_model,
