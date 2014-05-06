@@ -17,25 +17,30 @@
 
 write_model :-
         setof(W,P^part_of(P,W),Ws),
+        debug(render,' ws=~w',[Ws]),
         member(W,Ws),
+        debug(render,' testing ~w',[W]),
         \+ part_of(W,_),
         write_model(W),
         fail.
 write_model.
 
 write_model(P):-
-        debug(sbtext,'Writing ~w',[P]),
+        debug(render,'Writing ~w',[P]),
         phrase(proc(P),Toks),
         concat_atom(Toks,'',A),
         writeln(A).
 
 
-proc(P) --> parents(P,D), {Dplus1 is D+1},occ(P,Dplus1), children(P,Dplus1).
+proc(P) --> parents(P,D), {Dplus1 is D+1},occ(P,Dplus1), children(P,Dplus1),!.
+proc(P) --> {throw(proc(P))}.
 
-pproc(P,D) --> parents(P,D), occ(P,D).
+pproc(P,D) --> parents(P,D), occ(P,D), !.
+pproc(P) --> {throw(pproc(P))}.
 
-parents(P,Dplus1) --> {part_of(P,W)},pproc(W,D),{Dplus1 is D+1}.
-parents(P,1) --> {\+ part_of(P,_)},occ(P,1).
+parents(P,Dplus1) --> {part_of(P,W)},!,pproc(W,D),{Dplus1 is D+1}.
+parents(P,1) --> {\+ part_of(P,_)},!,occ(P,1).
+parents(P,1) --> {throw(parents(P,1))}.
 
 children(P,D) --> {Dplus1 is D+1},{setof(C,part_of(C,P),Cs)},!,lchildren(Cs,Dplus1).
 children(_,_) --> [].
@@ -44,10 +49,12 @@ lchildren([],_) --> [].
 lchildren([C|Cs],D) --> occ(C,D),children(C,D),lchildren(Cs,D).
 
 occ(P,D) --> {debug(sbtext,' OCC ~w',[P])}, nl, indent(D), [' [ '], e(P),[' ] '],!.
+occ(P,D) --> {throw(occ(P,D))}.
 
 
 e(P) --> label(P),[' '],types(P),props(P),!.
-e(P) --> ['?'],label(P),[' '],props(P).
+e(P) --> ['?'],label(P),[' '],props(P),!.
+e(P) --> {throw(e(P))}.
 
 
 label(P) --> short(P),[' '],{rdf_has(P,rdfs:label,Lit),lit2atom(Lit,Label)},!,[Label].
@@ -93,7 +100,11 @@ nl --> [' ;\n'].
 individual_ftypes(I,Types) :-
         setof(T,
               individual_ftype(I,T),
-              Types).
+              Types),
+        !.
+individual_ftypes(_,[]).
+
+        
 individual_ftype(I,T) :-
         rdf(I,rdf:type,T),
         \+ filtered(T).
@@ -101,6 +112,7 @@ individual_ftype(I,T) :-
 filtered(T) :- atom_concat('http://www.biopax.org',_,T).
 filtered(T) :- atom_concat('http://www.w3.org',_,T).
 filtered(T) :- atom_concat('__file',_,T).
+filtered(T) :- rdf_is_bnode(T).
 
 lit2atom(literal(type(_,A)),A).
 lit2atom(literal(A),A) :- atom(A).

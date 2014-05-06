@@ -30,6 +30,7 @@ w(S,P,O) :-
 test(convert) :-
         debug(test),
         debug(sbtext),
+        debug(render),
         debug(bp2lego),
         cvt('ExtrinsicApoptosis.ttl',lego),
         %forall(rdf(S,P,O,lego),

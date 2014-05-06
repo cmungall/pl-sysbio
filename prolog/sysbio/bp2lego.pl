@@ -360,7 +360,7 @@ Event has_output M,
 % metadata
 % ========================================
 
-rdf(S,rdfs:comment,O) <==
+rdf(S,rdfs:comment,literal(O)) <==
    S displayName O.
 
              
@@ -506,9 +506,11 @@ anonymize_non_process(_,_,_,_).
 
 anonymize(S,P,O,G) :-
         rdf(O,rdf:type,OT,G),
-        debug(bp2lego,'Anonymizing: ~w ~w ~w',[S,P,O]),
+        debug(bp2lego,'Anonymizing: ~w ~w ~w, where O type ~w',[S,P,O,OT]),
         !,
         rdf_retractall(S,P,O,G),
+        rdf_retractall(O,rdf:type,OT,G),
+        %rdf_retractall(O,_,_,G), % too extreme?
         rdf_bnode(X),
         rdf_assert(S,rdf:type,X,G),
         rdf_assert(X,rdf:type,owl:'Restriction',G),
@@ -519,6 +521,15 @@ anonymize(_,_,_,_).
 :- rdf_meta anrel(r).
 anrel(occurs_in:'').
 anrel(enabled_by:'').
+anrel(has_output:'').
+anrel(has_input:'').
+
+add_ontology_header(G) :-
+        atom_concat('http://purl.obolibrary.org/obo/',G,Ont),
+        rdf_assert(Ont,rdf:type,owl:'Ontology',G),
+        rdf_assert(Ont,owl:imports,'http://purl.obolibrary.org/obo/go.owl',G),
+        rdf_assert(Ont,owl:imports,'http://purl.obolibrary.org/obo/ro.owl',G).
+        
 
 % ========================================
 % top-level
@@ -526,7 +537,8 @@ anrel(enabled_by:'').
 
 convert_biopax_to_lego(Graph,IsFresh) :-
         materialize_views(Graph,IsFresh),
-        anonymize_non_processes(Graph).
+        anonymize_non_processes(Graph),
+        add_ontology_header(Graph).
 
 
 /*

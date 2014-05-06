@@ -1,4 +1,4 @@
-OBO=http://purl.obolibrary.org/obo/
+OBO=http://purl.obolibrary.org/obo
 
 all: tests
 
@@ -13,7 +13,10 @@ ontologies/go-orig.obo:
 	wget $(OBO)/go.obo -O $@
 
 ontologies/go.owl: ontologies/go-orig.obo
-	owltools $< --extract-mingraph -o $@
+	owltools $< --extract-mingraph --set-ontology-id $(OBO)/go.owl -o $@
 
 ontologies/go.ttl: ontologies/go.owl
 	owltools $< -o -f ttl $@
+
+ontologies/ro.owl: 
+	owltools $(OBO)/ro.owl --merge-imports-closure --extract-mingraph --set-ontology-id $(OBO)/ro.owl -o $@
