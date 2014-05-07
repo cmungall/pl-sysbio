@@ -15,9 +15,10 @@ cvt(File,G) :-
         rdf_load('ontologies/go.owl'),
         atom_concat('t/data/',File,Path),
         rdf_load(Path,[graph(test)]),
-        materialize_views(G,true),
+        %materialize_views(G,true),
         debug(test,'Loaded',[]),
-        anonymize_non_processes(lego),
+        %anonymize_non_processes(lego),
+        convert_biopax_to_lego(lego,true),
         debug(test,'Anonymizied',[]).
 
 

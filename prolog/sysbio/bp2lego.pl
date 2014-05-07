@@ -31,6 +31,7 @@
 :- use_module(library(semweb/rdfs)).
 :- use_module(biopax_util).
 :- use_module(lego_ns).
+:- use_module(ro).
 
 objectProperty(part_of).
 objectProperty(has_part).
@@ -117,7 +118,7 @@ assert_clist( (A,B), G ) :-
         assert_clist(A, G),
         assert_clist(B, G).
 
-assert_clist( rdf(Pred, Subj, Obj), G ) :-
+assert_clist( rdf(Subj, Pred, Obj), G ) :-
         assert_triple(Subj, Pred, Obj, G).
 
 assert_clist( Triple, G ) :-
@@ -166,6 +167,7 @@ is_subterm_of(Sub, (_,B)) :-
 :- op(300, xfy, part_of).
 :- op(300, xfy, occurs_in).
 :- op(300, xfy, enabled_by).
+:- op(300, xfy, regulated_by).
 :- op(300, xfy, has_input).
 :- op(300, xfy, has_output).
 :- op(300, xfy, directly_provides_input_for).
@@ -206,14 +208,19 @@ default_predicate_property(mago:pathway_has,transitive(true)).
 P part_of W,
   P type (owl:'NamedIndividual'),
   W type (owl:'NamedIndividual')
-    <== W pathwayComponent P.
+    <== W pathwayComponent P,
+    (   conversion(P)
+    ;   pathway(P)).
+
 
 % alternate
+/*
 P part_of W,
   P type (owl:'NamedIndividual'),
   W type (owl:'NamedIndividual')
    <== W pathwayOrder Step, Step stepProcess P,
        \+ catalysis(P).
+*/
 
 %P part_of W <== ppo(P,W).
 
@@ -235,13 +242,19 @@ Process type Type <==
       Process xref Xref,
       xref_to_go(Xref, Type).
 
+Process type Type <==
+      pathway(Process),
+      rdf_current_prefix(biological_process,Type).
+
 % ========================================
 % activity type
 % ========================================
 
 Event type EventType <==
        conversion(Event),
-       event_type_semidet(Event,EventType).
+       event_type_semidet(Event,EventType),
+       sub_atom(EventType,_,_,_,'/GO_').
+
 
 /*
 Event type EventType <==
@@ -290,7 +303,8 @@ event_type_semidet(Event,EventType) :-
 (   Event occurs_in Loc,
      Loc type LocType) <==
              CI controlled Event,
-             CI controller C, 
+             CI controller C,
+             catalysis(CI),
              C cellularLocation Loc,
              Loc xref Xref,
              xref_to_uri(Xref, LocType).
@@ -304,8 +318,8 @@ Event enabled_by M,
      <==
              CI controlled Event,    % e.g. Catalysis1651 controlled Reaction3695
              CI controller M, % e.g. Catalysis1651 controller Protein5061
-             M entityReference Ref,
-             ref_best_xref(Ref,MType).
+             catalysis(CI),
+             molecule_type(M,MType).
 
 % E.g cataylis37 / reaction48 in glycolysis
 Event enabled_by M,
@@ -314,7 +328,30 @@ Event enabled_by M,
      <==
              CI controlled Event,      % e.g. reaction48
              CI controller M,          % e.g. Protein108
+             catalysis(CI),
              ref_best_xref(CI,EType),  % e.g. GO:0004613 ! phosphoenolpyruvate carboxykinase (GTP) activity
+             M entityReference MRef,
+             ref_best_xref(MRef,MType).
+
+
+Event regulated_by M,
+     M type MType
+     <==
+             CI controlled Event,    % e.g. Catalysis1651 controlled Reaction3695
+             CI controller M, % e.g. Catalysis1651 controller Protein5061
+             \+ catalysis(CI),
+             molecule_type(M,MType).
+
+% E.g cataylis37 / reaction48 in glycolysis
+Event regulated_by M,
+     M type MType,
+     Event type EType
+     <==
+             CI controlled Event,      % e.g. reaction48
+             CI controller M,          % e.g. Protein108
+             \+ catalysis(CI),
+             ref_best_xref(CI,EType),  % e.g. GO:0004613 ! phosphoenolpyruvate carboxykinase (GTP) activity
+             sub_atom(EType,_,_,_,'/GO_'),
              M entityReference MRef,
              ref_best_xref(MRef,MType).
 
@@ -345,14 +382,12 @@ Event directly_inhibits NextEvent
 Event has_input M,
      M type MType <==
              Event left M,
-             M entityReference Ref,
-             ref_best_xref(Ref,MType).
+             molecule_type(M,MType).
 
 Event has_output M,
      M type MType <==
              Event right M,
-             M entityReference Ref,
-             ref_best_xref(Ref,MType).
+             molecule_type(M,MType).
 
 % TODO: cardinality
 
@@ -360,10 +395,28 @@ Event has_output M,
 % metadata
 % ========================================
 
-rdf(S,rdfs:comment,literal(O)) <==
+rdf(S,rdfs:label,literal(O)) <==
    S displayName O.
 
-             
+
+% ========================================
+% complexes and molecules
+% ========================================
+
+W has_part P <==
+   W component P.
+W has_part P <==
+   W memberPhysicalEntity E,
+   E component P.
+
+:- rdf_meta molecule_type(r,r).
+molecule_type(M,MType) :-
+        M entityReference Ref,
+        ref_best_xref(Ref,MType).
+molecule_type(M,macromolecular_complex:'') :-
+        complex(M).
+
+        
 
 % ========================================
 % generic
@@ -492,9 +545,86 @@ extract_pathway(P) :-
 % post-processing
 % ========================================
 
+assert_object_properties(G) :-
+        forall(objectProperty(OPN),
+               (   rdf_global_id(OPN:'',OP),
+                   rdf_assert(OP,rdf:type,owl:'ObjectProperty',G))).
+        
+
+% MSC
+node_expression(N,X,G) :-
+        setof(Arg,
+              edge_expression(N,Arg,G),
+              Args),
+        args_expression(Args,X).
+
+edge_expression(N,X,G) :-
+        rdf(N,rdf:type,X,G).
+edge_expression(N,some(P,Y),G) :-
+        rdf(N,P,X,G),
+        rdf(P,rdf:type,owl:'ObjectProperty',G),
+        node_expression(X,Y,G).
+
+args_expression([A],A) :- !.
+args_expression(L,and(L)) :- !,
+        L=[_|_].
+
+triple_expression(S,P,O,G,some(P,X)) :-
+        rdf(S,P,O,G),
+        anrel(P),
+        debug(bp2lego,' checking ~w --> ~w',[P,O]),
+        node_expression(O,X,G).
+
+anonymize_non_processes(G):-
+        V = triple_expression(_S,_P,_O,_G,X),
+        setof(V,V,Vs),
+        forall(member(V,Vs),
+               triple_replace(V)).
+
+triple_replace(triple_expression(S,P,O,G,X)) :-
+        rdf_retractall(S,P,O,G),
+        debug(bp2lego,' Making complex: ~w',[X]),
+        assert_complex_type(X,BN,G),
+        debug(bp2lego,'   BN: ~w',[BN]),
+        rdf_assert(S,rdf:type,BN,G),
+        transfer_label(O,X,G).
+
+transfer_label(O,some(_,Y),G) :-
+        atom(Y),
+        \+ sub_atom(Y,_,_,_,'GO_'),
+        forall(rdf(O,rdfs:label,Label,G),
+               rdf_assert(Y,rdfs:label,Label,G)),
+        !.
+transfer_label(_,_,_).
+
+assert_complex_type(and(L),BN,G) :-
+        !,
+        rdf_bnode(BN),
+        rdf_assert(BN,rdf:type,owl:'Class'),
+        debug(bp2lego,'   AND: ~w',[L]),
+        findall(EBN,
+                (   member(E,L),
+                    assert_complex_type(E,EBN,G)),
+                LX),
+        rdfs_assert_list(LX,LBN,G),
+        rdf_assert(BN,owl:intersectionOf,LBN,G).
+
+assert_complex_type(some(P,Y),BN,G) :-
+        !,
+        debug(bp2lego,'   SOME: ~w ~w',[P,Y]),
+        rdf_bnode(BN),
+        rdf_assert(BN,rdf:type,owl:'Restriction',G),
+        rdf_assert(BN,owl:onProperty,P,G),
+        assert_complex_type(Y,YBN,G),
+        rdf_assert(BN,owl:someValuesFrom,YBN,G).
+assert_complex_type(X,X,_).
+
+
+/*
 anonymize_non_processes(G):-
         forall(rdf(S,P,O,G),
                anonymize_non_process(S,P,O,G)).
+*/
 
 anonymize_non_process(S,P,O,G) :-
         %is_process(S),
@@ -504,23 +634,26 @@ anonymize_non_process(S,P,O,G) :-
         anonymize(S,P,O,G).
 anonymize_non_process(_,_,_,_).
 
+% TODO - complexes - translate to intersections
 anonymize(S,P,O,G) :-
-        rdf(O,rdf:type,OT,G),
+        rdf(O,rdf:type,OT,G),  
         debug(bp2lego,'Anonymizing: ~w ~w ~w, where O type ~w',[S,P,O,OT]),
         !,
         rdf_retractall(S,P,O,G),
-        rdf_retractall(O,rdf:type,OT,G),
+        %rdf_retractall(O,rdf:type,OT,G), % TODO - defer this
         %rdf_retractall(O,_,_,G), % too extreme?
         rdf_bnode(X),
         rdf_assert(S,rdf:type,X,G),
         rdf_assert(X,rdf:type,owl:'Restriction',G),
         rdf_assert(X,owl:onProperty,P,G),
-        rdf_assert(X,owl:someValuesFrom,OT,G).
+        rdf_assert(X,owl:someValuesFrom,OT,G),
+        debug(bp2lego,'  DONE anon: ~w ~w ~w, where O type ~w',[S,P,O,OT]).
 anonymize(_,_,_,_).
 
 :- rdf_meta anrel(r).
 anrel(occurs_in:'').
 anrel(enabled_by:'').
+anrel(regulated_by:'').
 anrel(has_output:'').
 anrel(has_input:'').
 
@@ -537,6 +670,7 @@ add_ontology_header(G) :-
 
 convert_biopax_to_lego(Graph,IsFresh) :-
         materialize_views(Graph,IsFresh),
+        assert_object_properties(Graph),
         anonymize_non_processes(Graph),
         add_ontology_header(Graph).
 

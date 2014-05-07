@@ -84,14 +84,18 @@ w_next(_) --> [].
 w_io(P) --> ['{'],w_input(P),['->'],w_output(P),['}'].
 
 w_input(P) --> {has_input(P,G)},!,types(G),[' '].
+w_input(P) --> {svf(P,has_input:'',G)},!,label(G),[' '].
 w_input(_) --> [].
 w_output(P) --> {has_output(P,G)},!,types(G),[' '].
+w_output(P) --> {svf(P,has_output:'',G)},!,label(G),[' '].
 w_output(_) --> [].
 
 
 mol(M) --> types(M).
 
-types(M) --> {individual_ftypes(M,Ts)},labels(Ts).
+types(M) --> {individual_ftypes(M,Ts)},labels(Ts),!.
+types(M) --> {throw(types(M))}.
+
 
 indent(D) --> {D =< 1},!.
 indent(D) --> {D>1, Dminus1 is D-1},['   '],indent(Dminus1).

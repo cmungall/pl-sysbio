@@ -21,9 +21,12 @@
 :- rdf_register_ns(directly_activates, 'http://purl.obolibrary.org/obo/RO_0002406').
 :- rdf_register_ns(directly_inhibits, 'http://purl.obolibrary.org/obo/RO_0002408').
 :- rdf_register_ns(enabled_by, 'http://purl.obolibrary.org/obo/RO_0002333').
+:- rdf_register_ns(regulated_by, 'http://purl.obolibrary.org/obo/RO_0002334').
 :- rdf_register_ns(has_input, 'http://purl.obolibrary.org/obo/RO_0002233').
 :- rdf_register_ns(has_output, 'http://purl.obolibrary.org/obo/RO_0002234').
 :- rdf_register_ns(occurs_in, 'http://purl.obolibrary.org/obo/BFO_0000066').
 :- rdf_register_ns(has_part, 'http://purl.obolibrary.org/obo/BFO_0000051').
 :- rdf_register_ns(part_of, 'http://purl.obolibrary.org/obo/BFO_0000050').
 foo('0').
+:- rdf_register_ns(macromolecular_complex, 'http://purl.obolibrary.org/obo/GO_0032991').
+:- rdf_register_ns(biological_process, 'http://purl.obolibrary.org/obo/GO_0008150').

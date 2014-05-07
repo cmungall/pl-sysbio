@@ -15,7 +15,7 @@ cvt(File,G) :-
         rdf_load('ontologies/go.owl'),
         atom_concat('t/data/',File,Path),
         rdf_load(Path,[graph(test)]),
-        materialize_views(G,true),
+        convert_biopax_to_lego(lego,true),
         debug(test,'Loaded',[]).
         
 
@@ -30,11 +30,13 @@ w(S,P,O) :-
 test(convert) :-
         debug(test),
         debug(sbtext),
-        cvt('Glycolysis.ttl',lego),
+        debug(bp2lego),
+        cvt('Glycolysis2.owl',lego),
         %forall(rdf(S,P,O,lego),
         %       w(S,P,O)),
         debug(test,'rendering...',[]),
         write_model,
+        rdf_save('target/glycolysis-lego.owl',[graph(lego)]),
         true.
 
 

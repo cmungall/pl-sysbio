@@ -21,6 +21,7 @@
 %
 % loads a reactome pathway into an RDF graph
 %
+%
 % Options:
 %  
 %   * fresh(+Bool)
@@ -32,6 +33,20 @@
 %   * cleanup(+Bool)
 %     if true, clears IntoGraph after loading
 %  
+%  The ID provided typically corresponds to the DIAGRAM ID in reactome
+%  
+% Example:
+%
+%  * http://www.reactome.org/PathwayBrowser/#DIAGRAM=109607&PATH=109581 (Extrinsinc Pathway for Apoptosis)
+%  * http://www.reactome.org/ReactomeRESTfulAPI/RESTfulWS/biopaxExporter/Level3/109607
+%
+%  * http://www.reactome.org/cgi-bin/eventbrowser?DB=gk_current&ID=70171 Pathway: Glycolysis (Homo sapiens) redirects to:
+%  * http://www.reactome.org/PathwayBrowser/#DB=gk_current&FOCUS_SPECIES_ID=48887&FOCUS_PATHWAY_ID=71387&ID=70171
+%  * http://www.reactome.org/ReactomeRESTfulAPI/RESTfulWS/biopaxExporter/Level3/70171
+%
+%
+%
+%
 remote_load_reactome(ReactomeID) :-
         remote_load_reactome(ReactomeID, []).
 remote_load_reactome(ReactomeID,Opts) :-
@@ -51,9 +66,7 @@ remote_load_reactome(ReactomeID,IntoGraph,Opts) :-
         rdf_load(URL,[graph(IntoGraph), format(xml)]),
         debug(reactome,'Loading into ~w',[IntoGraph]),
         (   option(lego(LegoGraph),Opts)
-        ->  convert_biopax_to_lego(LegoGraph,true),
-            forall(rdf(S,P,O,LegoGraph),
-                   debug(reactome,'[~w ~w ~w IN ~w]',[S,P,O,LegoGraph]))
+        ->  convert_biopax_to_lego(LegoGraph,true)
         ;   true),
         (   option(cleanup(true),Opts)
         ->  rdf_retractall(_,_,_,IntoGraph)
