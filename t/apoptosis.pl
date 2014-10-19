@@ -9,24 +9,9 @@
 
 :- ensure_loaded('prolog/sysbio/bp2lego').
 :- ensure_loaded('prolog/sysbio/lego_ns').
+:- ensure_loaded('prolog/sysbio/ro').
 :- ensure_loaded('prolog/sysbio/render/sbtext').
-
-cvt(File,G) :-
-        rdf_load('ontologies/go.owl'),
-        atom_concat('t/data/',File,Path),
-        rdf_load(Path,[graph(test)]),
-        %materialize_views(G,true),
-        debug(test,'Loaded',[]),
-        %anonymize_non_processes(lego),
-        convert_biopax_to_lego(lego,true),
-        debug(test,'Anonymizied',[]).
-
-
-        
-
-w(S,P,O) :-
-        rdf_global_id(PP,P),
-        format('  ~w -[~w]-> ~w~n',[S,PP,O]).
+:- ensure_loaded('test_util').
 
 test(convert) :-
         debug(test),
@@ -44,7 +29,12 @@ test(convert) :-
 
 % NOTE: in reactome, multiple levels all linked to the same biological process
 check :-
-        rdf(_,rdf:type,'obo':'GO_0097190').
+        rdf(_X,rdf:type,'obo':'GO_0097190').
+
+
+
+
+
 foo(0). %'
 
 :- end_tests(cvt).

@@ -14,7 +14,11 @@
            node/1,
            node/2,
            node_prop/3,
-           node_prop/4
+           node_prop/4,
+           translate_egraph/0,
+           translate_egraph/1,
+           translate_egraph/2,
+           materialize_entailments/2
            ]).
 
 :- use_module(library(semweb/rdf_db)).
@@ -67,7 +71,7 @@ node(N,G) :-
 node_prop(S,P,V) :-
         node_prop(S,P,V,_).
 node_prop(S,P,V,G) :-
-        rdf(S,P,literal(Value),G),
+        rdf(S,P,literal(V),G),
         \+ rdf_is_bnode(S).
         
 
@@ -97,11 +101,18 @@ translate_egraph(SG,TG) :-
         forall((subclass_of_svf(S,P,O,SG),target_graph(SG,TG)),
                rdf_assert(S,P,O,TG)).
 
+%% subclass_of_svf(S,P,O,G)
+%
+% S SubClassOf P some O (asserted in G)
 subclass_of_svf(S,P,O,G) :-
         rdf(S,rdfs:subClassOf,X,G),
         rdf(X,owl:onProperty,P,G),
         rdf(X,owl:someValuesFrom,O,G).
 
+%% target_graph(+SG,?TG) is det
+%
+% sets the target graph - this will be the
+% same as SG unless TG already ground
 target_graph(_,TG) :-
         \+ var(TG).
 target_graph(SG,TG) :-
@@ -110,3 +121,29 @@ target_graph(SG,TG) :-
         !,
         SG=TG.
 
+%% materialize_entailments(+G, +Rule) is det
+%
+% apply entailment/4 iteratively for Rule until
+% saturated
+materialize_entailments(G,Rule) :-
+        repeat,
+          rdf_graph_property(G,triples(NumTriples)),
+          debug(rdft,'SATURATING. num_triples(~w) = ~w',[G,NumTriples]),
+          entailment(S,P,O,Rule),
+          rdf_assert(S,P,O,G),
+          rdf_graph_property(G,triples(NumTriples_2)),
+          (   NumTriples_2 == NumTriples
+          ->  !
+          ;   fail
+          ).
+
+% S sub* X, X P O ==> S P O
+entailment(S,P,O,propagate_over_subclass) :-
+        rdfs_subclass_of(S,X),
+        rdf(X,P,Y),
+        objectProperty(P),
+        rdfs_subclass_of(Y,O).
+
+
+
+        

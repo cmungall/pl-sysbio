@@ -14,6 +14,10 @@
   *
   * Then look on port 9001
   *
+  *
+  * Example:
+  * 
+  *
   */
 
 :- module(sbserver,

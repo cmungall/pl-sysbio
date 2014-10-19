@@ -66,7 +66,7 @@ remote_load_reactome(ReactomeID,IntoGraph,Opts) :-
         rdf_load(URL,[graph(IntoGraph), format(xml)]),
         debug(reactome,'Loading into ~w',[IntoGraph]),
         (   option(lego(LegoGraph),Opts)
-        ->  convert_biopax_to_lego(LegoGraph,true)
+        ->  convert_biopax_to_lego(LegoGraph)
         ;   true),
         (   option(cleanup(true),Opts)
         ->  rdf_retractall(_,_,_,IntoGraph)

@@ -1,7 +1,7 @@
 /* -*- Mode: Prolog -*- */
 
 /**
-  * Extracts from BioPax3 into a GO instance graph
+  * Converts BioPax3 triples into a GO/LEGO instance graph
   *
   * Note that most of this module is a generic RDF
   * view serialization engine; may be separated out into
@@ -18,12 +18,12 @@
 
 :- module(bp2lego,
           [
+           convert_biopax_to_lego/1,
            convert_biopax_to_lego/2,
-           materialize_views/0,
-           materialize_views/1,
-           materialize_views/2,
+           %materialize_views/0,
+           %materialize_views/1,
+           %materialize_views/2,
            extract_pathways/0,
-           vq/1,
            anonymize_non_processes/1
            ]).
 
@@ -32,6 +32,8 @@
 :- use_module(biopax_util).
 :- use_module(lego_ns).
 :- use_module(ro).
+:- use_module(view_engine).
+:- use_module(owl_util).
 
 objectProperty(part_of).
 objectProperty(has_part).
@@ -41,122 +43,14 @@ objectProperty(has_output).
 objectProperty(directly_provides_input_for).
 objectProperty(directly_inhibits).
 
-% ========================================
-% VIEW ENGINE
-% ========================================
-% this may move to its own codebase
-
 :- op(1050,xfy,<==).
-
-:- rdf_meta view(t,t).
 :- rdf_meta '<=='(t,t).
 
-view( H,B ) :- (H <== B).
+:- multifile view_engine:view/2.
+view_engine:view( H,B ) :- (H <== B).
+:- module_transparent('<=='/2).
+:- module_transparent(view_engine:view/2).
 
-%% saturate_views(_Graph) is det
-%
-% materialize all views until materialize_views/1 generates no new triples.
-% it is possible for this to never terminate - user should be careful not
-% to introduce infinite models with <==/2.
-saturate_views(G) :-
-        repeat,
-          rdf_graph_property(G,triples(NumTriples)),
-          debug(rdft,'SATURATING. num_triples(~w) = ~w',[G,NumTriples]),
-          materialize_views(G),
-          rdf_graph_property(G,triples(NumTriples_2)),
-          (   NumTriples_2 == NumTriples
-          ->  !
-          ;   fail
-          ).
-
-%% materialize_views is det
-%
-% As materialize_views/1, into default graph
-materialize_views :-
-        rdf_create_graph(lego),
-        rdf_retractall(_,_,_,lego),
-        materialize_views(lego).
-        
-%% materialize_views(+Graph,+IsFresh:boolean) is det
-%% materialize_views(+Graph) is det
-%
-% asserts all views (which should have been declared with <==/2) into Graph
-%
-% if IsFresh is true then clear G prior to materialization
-materialize_views(G) :-
-        materialize_views(G,false).
-
-materialize_views(G,true) :-
-        rdf_create_graph(G),
-        rdf_retractall(_,_,_,G),
-        materialize_views(G,false).
-materialize_views(G,false) :-
-        rdf_graph_property(G,triples(NumTriples)),
-        debug(rdft,'num_triples(~w) = ~w',[G,NumTriples]),
-        forall( view(H,B),
-               materialize_view(H,B,G)).
-
-%% materialize_view(+Head:term ,+Body:term, +Graph) is det
-%
-% asserts Head terms for all Body
-%
-% Head and Body form a rule, i.e. Head :- Body
-materialize_view(H,B,G) :-
-        debug(bp2lego, 'view ~w ==> ~w',[B,H]),
-        forall(B,
-               assert_clist(H, G)).
-%materialize_view(_,_,_). % always succeed
-
-
-%% assert_clist( +TripleSetTerm, +Graph ) is det
-%
-% A TripleSetTerm is either
-%  * a conjunction T1,T2 where both T1 and T2 are TripleSetTerms
-%  * a term of the form P(S,O), which corresponds to a triple <S P O>
-assert_clist( (A,B), G ) :-
-        !,
-        assert_clist(A, G),
-        assert_clist(B, G).
-
-assert_clist( rdf(Subj, Pred, Obj), G ) :-
-        assert_triple(Subj, Pred, Obj, G).
-
-assert_clist( Triple, G ) :-
-        Triple =.. [Pred, Subj, Obj],
-        assert_triple(Subj, Pred, Obj, G).
-
-
-%% assert_triple(+Subj, +Pred, +Obj, +Graph) is det
-% 
-% asserts a triple into Graph
-% 
-% as rdf_assert/4, with mapping of predicate from short forms
-assert_triple(Subj, Pred, Obj, G) :-
-        map_predicate(Pred, Pred_2),
-        !,
-        assert_triple(Subj, Pred_2, Obj, G).
-assert_triple(Subj, Pred, Obj, G) :-
-        %debug(bp2lego,'ASSERT: ~w ~w ~w ~w',[Subj, Pred, Obj, G]),
-        rdf_assert(Subj, Pred, Obj, G).
-
-% slight overloading of namespace registration...
-map_predicate(P,P2) :- rdf_current_prefix(P,P2).
-
-% views are designed to be materialized, but
-% we allow querying of unmaterialized views
-vq(Head) :-
-        view( Outer_Head , Body),
-        is_subterm_of(Head, Outer_Head),
-        Body.
-
-is_subterm_of(T, T) :- !.
-
-is_subterm_of(Sub, (A,_)) :-
-        is_subterm_of(Sub, A),
-        !.
-is_subterm_of(Sub, (_,B)) :-
-        is_subterm_of(Sub, B),
-        !.
 
 
 % ========================================
@@ -240,11 +134,17 @@ P part_of W,
 Process type Type <==
       pathway(Process),
       Process xref Xref,
-      xref_to_go(Xref, Type).
+      bp2lego:xref_to_go(Xref, Type).
 
 Process type Type <==
       pathway(Process),
       rdf_current_prefix(biological_process,Type).
+
+% continuants
+X type Type <==
+      physicalEntity(X),
+      rdf_current_prefix(continuant,Type).
+
 
 % ========================================
 % activity type
@@ -252,7 +152,7 @@ Process type Type <==
 
 Event type EventType <==
        conversion(Event),
-       event_type_semidet(Event,EventType),
+       bp2lego:event_type_semidet(Event,EventType),
        sub_atom(EventType,_,_,_,'/GO_').
 
 
@@ -260,12 +160,12 @@ Event type EventType <==
 Event type EventType <==
         CI controlled Event, % e.g. catalysis112 controlled reaction297
         CI xref Xref,
-        xref_to_go(Xref, EventType). 
+        bp2lego:xref_to_go(Xref, EventType). 
 
 Event type EventType <==
         biochemicalReaction(Event),
         Event xref Xref,
-        xref_to_go(Xref, EventType). 
+        bp2lego:xref_to_go(Xref, EventType). 
 */
 
 event_type_semidet(Event,EventType) :-
@@ -307,7 +207,7 @@ event_type_semidet(Event,EventType) :-
              catalysis(CI),
              C cellularLocation Loc,
              Loc xref Xref,
-             xref_to_uri(Xref, LocType).
+             bp2lego:xref_to_uri(Xref, LocType).
 
 % ========================================
 % enabled_by
@@ -319,7 +219,7 @@ Event enabled_by M,
              CI controlled Event,    % e.g. Catalysis1651 controlled Reaction3695
              CI controller M, % e.g. Catalysis1651 controller Protein5061
              catalysis(CI),
-             molecule_type(M,MType).
+             bp2lego:molecule_type(M,MType).
 
 % E.g cataylis37 / reaction48 in glycolysis
 Event enabled_by M,
@@ -329,9 +229,9 @@ Event enabled_by M,
              CI controlled Event,      % e.g. reaction48
              CI controller M,          % e.g. Protein108
              catalysis(CI),
-             ref_best_xref(CI,EType),  % e.g. GO:0004613 ! phosphoenolpyruvate carboxykinase (GTP) activity
+             bp2lego:ref_best_xref(CI,EType),  % e.g. GO:0004613 ! phosphoenolpyruvate carboxykinase (GTP) activity
              M entityReference MRef,
-             ref_best_xref(MRef,MType).
+             bp2lego:ref_best_xref(MRef,MType).
 
 
 Event regulated_by M,
@@ -340,7 +240,7 @@ Event regulated_by M,
              CI controlled Event,    % e.g. Catalysis1651 controlled Reaction3695
              CI controller M, % e.g. Catalysis1651 controller Protein5061
              \+ catalysis(CI),
-             molecule_type(M,MType).
+             bp2lego:molecule_type(M,MType).
 
 % E.g cataylis37 / reaction48 in glycolysis
 Event regulated_by M,
@@ -350,10 +250,10 @@ Event regulated_by M,
              CI controlled Event,      % e.g. reaction48
              CI controller M,          % e.g. Protein108
              \+ catalysis(CI),
-             ref_best_xref(CI,EType),  % e.g. GO:0004613 ! phosphoenolpyruvate carboxykinase (GTP) activity
+             bp2lego:ref_best_xref(CI,EType),  % e.g. GO:0004613 ! phosphoenolpyruvate carboxykinase (GTP) activity
              sub_atom(EType,_,_,_,'/GO_'),
              M entityReference MRef,
-             ref_best_xref(MRef,MType).
+             bp2lego:ref_best_xref(MRef,MType).
 
 % ========================================
 % Steps
@@ -382,12 +282,12 @@ Event directly_inhibits NextEvent
 Event has_input M,
      M type MType <==
              Event left M,
-             molecule_type(M,MType).
+             bp2lego:molecule_type(M,MType).
 
 Event has_output M,
      M type MType <==
              Event right M,
-             molecule_type(M,MType).
+             bp2lego:molecule_type(M,MType).
 
 % TODO: cardinality
 
@@ -416,7 +316,20 @@ molecule_type(M,MType) :-
 molecule_type(M,macromolecular_complex:'') :-
         complex(M).
 
-        
+M type MT <==
+        complex(M),
+        rdf_current_prefix(macromolecular_complex,MT).
+
+M type MT <==
+        smallMolecule(M),
+        rdf_current_prefix(molecular_entity,MT).
+
+M type MT <==
+        protein(M),
+        %rdf_current_prefix(protein,MT).
+        M entityReference Ref,
+        bp2lego:ref_best_xref(Ref,MT).
+
 
 % ========================================
 % generic
@@ -428,7 +341,9 @@ xref_to_go(Xref,IRI) :-
 
 std_ns('GO').
 std_ns('UniProt').
+std_ns('UniProtIsoform').
 std_ns('ChEBI').
+std_ns('CHEBI').
 
 nonstd_ns('PubMed').
 nonstd_ns('Pubmed').
@@ -549,46 +464,52 @@ assert_object_properties(G) :-
         forall(objectProperty(OPN),
                (   rdf_global_id(OPN:'',OP),
                    rdf_assert(OP,rdf:type,owl:'ObjectProperty',G))).
-        
 
-% MSC
-node_expression(N,X,G) :-
-        setof(Arg,
-              edge_expression(N,Arg,G),
-              Args),
-        args_expression(Args,X).
-
-edge_expression(N,X,G) :-
-        rdf(N,rdf:type,X,G).
-edge_expression(N,some(P,Y),G) :-
-        rdf(N,P,X,G),
-        rdf(P,rdf:type,owl:'ObjectProperty',G),
-        node_expression(X,Y,G).
-
-args_expression([A],A) :- !.
-args_expression(L,and(L)) :- !,
-        L=[_|_].
-
-triple_expression(S,P,O,G,some(P,X)) :-
-        rdf(S,P,O,G),
-        anrel(P),
-        debug(bp2lego,' checking ~w --> ~w',[P,O]),
-        node_expression(O,X,G).
-
+%% anonymize_non_processes(+G)
+%
+% anonymyze all non-process individuals in a graph
+%
+% first generate a mapping between triples and
+% replacement expressions, then replace
+%
 anonymize_non_processes(G):-
         V = triple_expression(_S,_P,_O,_G,X),
         setof(V,V,Vs),
         forall(member(V,Vs),
                triple_replace(V)).
 
+
+%% triple_expression(?S,?P,?O,?G,?Expr) is nondet
+%
+% if S-P-O is a triple where P is a relation to be anonymized,
+% assuming S and O are individuals,
+% generate Expr equivalent to or subsuming O,
+%  i.e.some(P,X) -- where X is the most specific class expression subsuming O
+%
+triple_expression(S,P,O,G,some(P,X)) :-
+        rdf(S,P,O,G),
+        anrel(P),
+        debug(bp2lego,' checking ~w --> ~w',[P,O]),
+        node_expression(O,X,G).  % MSC
+
+
+%% triple_replace(+Expr)
+%
+% where Expr combines an S-P-O triple together with a graph G
+% and a class expression X, yielded from triple_expression/5
+%
 triple_replace(triple_expression(S,P,O,G,X)) :-
         rdf_retractall(S,P,O,G),
         debug(bp2lego,' Making complex: ~w',[X]),
         assert_complex_type(X,BN,G),
+        % TODO - simplify expression
         debug(bp2lego,'   BN: ~w',[BN]),
         rdf_assert(S,rdf:type,BN,G),
         transfer_label(O,X,G).
 
+% transfer the label from an individual to its MSC expression;
+% note this may not be strictly valid if there are multiple
+% individuals with the same expression
 transfer_label(O,some(_,Y),G) :-
         atom(Y),
         \+ sub_atom(Y,_,_,_,'GO_'),
@@ -597,6 +518,10 @@ transfer_label(O,some(_,Y),G) :-
         !.
 transfer_label(_,_,_).
 
+%% assert_complex_type(+Expr,?Node,+Graph)
+%
+% maps an EL-type class expression to a set of
+% triples which are asserted.
 assert_complex_type(and(L),BN,G) :-
         !,
         rdf_bnode(BN),
@@ -668,10 +593,15 @@ add_ontology_header(G) :-
 % top-level
 % ========================================
 
-convert_biopax_to_lego(Graph,IsFresh) :-
+convert_biopax_to_lego(Graph) :-
+        convert_biopax_to_lego(Graph,[]).
+convert_biopax_to_lego(Graph,Opts) :-
+        option(fresh(IsFresh),Opts,true),
         materialize_views(Graph,IsFresh),
         assert_object_properties(Graph),
-        anonymize_non_processes(Graph),
+        (   option(abox(true),Opts)
+        ->  true
+        ;   anonymize_non_processes(Graph)),
         add_ontology_header(Graph).
 
 

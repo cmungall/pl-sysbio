@@ -4,6 +4,7 @@
 :- use_module(prolog/sysbio/biopax_util).
 :- use_module(prolog/sysbio/lego_ns).
 :- use_module(prolog/sysbio/ro).
+:- use_module(prolog/sysbio/view_engine).
 
 :- use_module(library(semweb/rdf_db)).
 :- use_module(library(semweb/rdf_turtle)).
@@ -91,14 +92,25 @@ t :-
         %save_graph('Acetylcholine Neurotransmitter Release Cycle'),
         prolog.
 
-t1 :-
+t_hsap :-
         load_hsap,
         materialize_views,
-        rdf_save('target/hs-mago.owl',[graph(lego)]),
+        rdf_save('target/hs-lego-plus-bp-hsap.owl',[]),
+        rdf_save('target/hs-lego-hsap.owl',[graph(lego)]),
         extract_pathways,
         save_graphs,
         %save_graph('Acetylcholine Neurotransmitter Release Cycle'),
+        anonymize_non_processes(lego),
+        rdf_save('target/hs-lego-tbox-hsap.owl',[graph(lego)]),
         prolog.
+
+t_hsap_tbox :-
+        load_hsap,
+        materialize_views,
+        anonymize_non_processes(lego),
+        rdf_save('target/hs-lego-tbox-hsap.owl',[graph(lego)]).
+
+
 
 t2 :-
         load_hsap,

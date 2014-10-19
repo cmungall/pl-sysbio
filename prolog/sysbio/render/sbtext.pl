@@ -16,10 +16,12 @@
 :- use_module('../ro').
 
 write_model :-
-        setof(W,P^part_of(P,W),Ws),
+        % find all parents
+        collect_part_parents(Ws),
         debug(render,' ws=~w',[Ws]),
         member(W,Ws),
         debug(render,' testing ~w',[W]),
+        % only write roots or singletons
         \+ part_of(W,_),
         write_model(W),
         fail.
@@ -31,6 +33,14 @@ write_model(P):-
         concat_atom(Toks,'',A),
         writeln(A).
 
+collect_part_parents(Ws) :-
+        setof(W,P^part_of(P,W),Ws),
+        !.
+collect_part_parents(Ws) :-
+        % none found - try this instead
+        setof(W,C^occurs_in(W,C),Ws).
+
+        
 
 proc(P) --> parents(P,D), {Dplus1 is D+1},occ(P,Dplus1), children(P,Dplus1),!.
 proc(P) --> {throw(proc(P))}.

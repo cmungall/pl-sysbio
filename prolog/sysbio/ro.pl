@@ -21,7 +21,9 @@
            op(300, xfy, has_output),
            has_output/2,
            op(300, xfy, directly_provides_input_for),
-           directly_provides_input_for/2
+           directly_provides_input_for/2,
+           op(300, xfy, causally_upstream_of),
+           causally_upstream_of/2
            ]).
 :- ensure_loaded(lego_ns).
 :- use_module(library(semweb/rdf_db)).
@@ -35,6 +37,7 @@
 :- op(300, xfy, has_input).
 :- op(300, xfy, has_output).
 :- op(300, xfy, directly_provides_input_for).
+:- op(300, xfy, causally_upstream_of).
 
 :- op(300, xfy, type).  % rdf:type
 
@@ -46,6 +49,7 @@ X regulated_by Y :- rdf(X,regulated_by:'',Y).
 X has_input Y :- rdf(X,has_input:'',Y).
 X has_output Y :- rdf(X,has_output:'',Y).
 X directly_provides_input_for Y :- rdf(X,directly_provides_input_for:'',Y).
+X causally_upstream_of Y :- rdf_has(X,causally_upstream_of:'',Y).
 
 X part_of Y :: G :- rdf(X,part_of:'',Y,G).
 

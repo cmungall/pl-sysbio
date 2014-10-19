@@ -9,7 +9,8 @@
 :- rdf_register_ns('Rhea', 'http://purl.obolibrary.org/obo/RHEA_').
 :- rdf_register_ns('MetaCyc', 'http://purl.obolibrary.org/obo/MetaCyc_').
 %:- rdf_register_ns('UniProt', 'http://purl.obolibrary.org/obo/UniProtKB_').  % change to PR?
-:- rdf_register_ns('UniProt', 'http://purl.obolibrary.org/obo/PR_').  % change to PR?
+:- rdf_register_ns('UniProt', 'http://purl.obolibrary.org/obo/PR_').  % change to UniProtKB?
+:- rdf_register_ns('UniProtIsoform', 'http://purl.obolibrary.org/obo/PR_').  % change to UniProtKB?
 :- rdf_register_ns('ChEBI', 'http://purl.obolibrary.org/obo/CHEBI_').  % 
 :- rdf_register_ns('PubMed', 'http://www.ncbi.nlm.nih.gov/pubmed/').  % 
 :- rdf_register_ns('PubChemCompound', 'http://purl.obolibrary.org/obo/pubchem_').  % 
@@ -18,6 +19,7 @@
 :- rdf_register_ns(type, 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type').
 :- rdf_register_ns(namedIndividual, 'http://www.w3.org/2002/07/owl#NamedIndividual').
 :- rdf_register_ns(directly_provides_input_for, 'http://purl.obolibrary.org/obo/RO_0002413').
+:- rdf_register_ns(causally_upstream_of, 'http://purl.obolibrary.org/obo/RO_0002411').
 :- rdf_register_ns(directly_activates, 'http://purl.obolibrary.org/obo/RO_0002406').
 :- rdf_register_ns(directly_inhibits, 'http://purl.obolibrary.org/obo/RO_0002408').
 :- rdf_register_ns(enabled_by, 'http://purl.obolibrary.org/obo/RO_0002333').
@@ -29,4 +31,7 @@
 :- rdf_register_ns(part_of, 'http://purl.obolibrary.org/obo/BFO_0000050').
 foo('0').
 :- rdf_register_ns(macromolecular_complex, 'http://purl.obolibrary.org/obo/GO_0032991').
+:- rdf_register_ns(molecular_entity, 'http://purl.obolibrary.org/obo/CHEBI_23367').
+:- rdf_register_ns(protein, 'http://purl.obolibrary.org/obo/PR_000000001').
+:- rdf_register_ns(continuant, 'http://purl.obolibrary.org/obo/BFO_0000002').
 :- rdf_register_ns(biological_process, 'http://purl.obolibrary.org/obo/GO_0008150').
