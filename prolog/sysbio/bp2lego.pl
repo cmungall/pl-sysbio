@@ -3,16 +3,13 @@
 /**
   * Converts BioPax3 triples into a GO/LEGO instance graph
   *
-  * Note that most of this module is a generic RDF
-  * view serialization engine; may be separated out into
-  * a different project in the future.
   *
-  * This only works on BioPax3
+  * NOTE: This only works on BioPax3
   * To convert from l2 to l3:
   *
   * java -Xmx1g -jar paxtools.jar toLevel3 input_l2.owl output_l3.owl
   *
-  * It works best on Reactome flavors (because the use GO xrefs heavily)
+  * It works best on Reactome flavors (because Reactome uses GO xrefs heavily)
   *
   */
 
@@ -20,9 +17,6 @@
           [
            convert_biopax_to_lego/1,
            convert_biopax_to_lego/2,
-           %materialize_views/0,
-           %materialize_views/1,
-           %materialize_views/2,
            extract_pathways/0,
            anonymize_non_processes/1
            ]).
@@ -187,12 +181,6 @@ event_type_semidet(Event,EventType) :-
         ref_best_xref(Xref, EventType),
         !.
 
-
-        
-
-
-        
-
 % todo - defaults to GO:0003674 or GO:0008150
 
 % ========================================
@@ -200,8 +188,9 @@ event_type_semidet(Event,EventType) :-
 % ========================================
 
 % in biopax, entities have locations, not events, so we use the location of the controller
-(   Event occurs_in Loc,
-     Loc type LocType) <==
+Event occurs_in Loc,
+   Loc type LocType
+   <==
              CI controlled Event,
              CI controller C,
              catalysis(CI),
@@ -214,7 +203,7 @@ event_type_semidet(Event,EventType) :-
 % ========================================
 
 Event enabled_by M,
-     M type MType
+    M type MType
      <==
              CI controlled Event,    % e.g. Catalysis1651 controlled Reaction3695
              CI controller M, % e.g. Catalysis1651 controller Protein5061
@@ -273,8 +262,6 @@ Event directly_inhibits NextEvent
    controlled(Event,NextEvent),
    controlType(Event,literal(type(_,'INHIBITION'))).
 
-   
-
 % ========================================
 % I/O
 % ========================================
@@ -297,7 +284,6 @@ Event has_output M,
 
 rdf(S,rdfs:label,literal(O)) <==
    S displayName O.
-
 
 % ========================================
 % complexes and molecules
@@ -396,6 +382,11 @@ rdf_global_id_wrap(NS:Local, URI) :-
 rdf_global_id_wrap(NS:Local, URI) :-
         concat_atom([NS,Local],'_',ID),
         rdf_global_id(obo:ID, URI).
+
+% ========================================
+% UTIL
+% ========================================
+% code below this may be moved to distinct module
 
 % ========================================
 % graph utils
