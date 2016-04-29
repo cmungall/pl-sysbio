@@ -54,7 +54,7 @@ convert_reactome(Request) :-
         debug(sbserver,'Checking ~w',[Request]),
         member(path_info(ID),Request),
         debug(sbserver,'ID ~w',[ID]),
-        remote_load_reactome(ID,[fresh(true),lego(lego),cleanup(true)]),
+        remote_load_reactome(ID,[fresh(true),lego(lego),cleanup(true),abox(true)]),
         concat_atom(['target/',ID,'.owl'],Path),
         rdf_save(Path,[graph(lego)]),
         rdf_retractall(_,_,_,lego),

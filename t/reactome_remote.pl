@@ -40,4 +40,17 @@ check :-
         rdf(_,rdf:type,'obo':'GO_0097190').
 foo(0). %'
 
+% http://www.reactome.org/PathwayBrowser/#DIAGRAM=168898&PATH=168256,168249
+test(tlr) :-
+        debug(test),
+        debug(sbtext),
+        debug(bp2lego),
+        debug(reactome),
+        cvt(9047,lego),
+        check,
+        debug(test,'rendering...',[]),
+        write_model,
+        rdf_save('target/tlr9-lego.owl',[graph(lego)]),
+        true.
+
 :- end_tests(cvt).

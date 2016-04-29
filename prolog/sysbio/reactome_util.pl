@@ -9,7 +9,8 @@
           [
            remote_load_reactome/1,
            remote_load_reactome/2,
-           remote_load_reactome/3
+           remote_load_reactome/3,
+           remote_reactome_main
            ]).
 
 :- use_module(library(semweb/rdf_db)).
@@ -53,6 +54,7 @@ remote_load_reactome(ReactomeID,Opts) :-
         atom_concat('reactome_',ReactomeID,IntoGraph),
         remote_load_reactome(ReactomeID, IntoGraph,Opts).
 
+% TODO: plant - http://plantreactome.gramene.org/ReactomeRESTfulAPI/RESTfulWS/biopaxExporter/Level3/2894885
 remote_load_reactome(ReactomeID,IntoGraph,Opts) :-
         %(   option(fresh(true),Opts)
         %->  rdf_retractall(_,_,_)
@@ -66,10 +68,40 @@ remote_load_reactome(ReactomeID,IntoGraph,Opts) :-
         rdf_load(URL,[graph(IntoGraph), format(xml)]),
         debug(reactome,'Loading into ~w',[IntoGraph]),
         (   option(lego(LegoGraph),Opts)
-        ->  convert_biopax_to_lego(LegoGraph)
+        ->  convert_biopax_to_lego(LegoGraph,Opts)
         ;   true),
         (   option(cleanup(true),Opts)
         ->  rdf_retractall(_,_,_,IntoGraph)
         ;   true).
 
 
+remote_reactome_main :-
+        current_prolog_flag(argv, Argv),
+        OptsSpec=
+        [
+         [opt(query),
+          type(atom),
+          shortflags([q]),
+          help(['foo'])
+          ],
+         [opt(output),
+          type(atom),
+          shortflags([o]),
+          help(['foo'])
+          ]
+        ],
+        opt_arguments(OptsSpec, Opts, PositionalArgs),
+        forall(member(Q,PositionalArgs),
+               query(Q,Opts)),
+        halt(0).
+
+
+query(ID,Opts) :-
+        remote_load_reactome(ID,[fresh(true),lego(lego),cleanup(true)]),
+        (   member(output(Path),Opts)
+        ->  rdf_save(Path,[graph(lego)])
+        ;   tmp_file(lego,Path),
+            rdf_save(Path,[graph(lego)]),
+            read_file_to_string(Path,Str,[]),
+            write(Str)),
+        rdf_retractall(_,_,_,lego).
