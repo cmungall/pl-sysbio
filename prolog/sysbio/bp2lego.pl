@@ -464,7 +464,7 @@ assert_object_properties(G) :-
 % replacement expressions, then replace
 %
 anonymize_non_processes(G):-
-        V = triple_expression(_S,_P,_O,_G,X),
+        V = triple_expression(_S,_P,_O,G,_X),
         setof(V,V,Vs),
         forall(member(V,Vs),
                triple_replace(V)).

@@ -55,3 +55,6 @@ target/%-pack.owl: target/%.owl target/%-importmod.owl
 
 
 ##	owltools --use-catalog $^ --remove-imports-declarations --merge-support-ontologies -o -f ttl --prefix obo $(OBO) --prefix r http://www.reactome.org/biopax/ $@
+
+prolog/sysbio/go.pl:
+	../rdfs2pl/bin/rdfs2pl go $(HOME)/repos/go/ontology/subsets/goslim_generic.owl > $@

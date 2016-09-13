@@ -23,7 +23,10 @@
            op(300, xfy, directly_provides_input_for),
            directly_provides_input_for/2,
            op(300, xfy, causally_upstream_of),
-           causally_upstream_of/2
+           causally_upstream_of/2,
+           
+           op(300, xfy, type),
+           type/2
            ]).
 :- ensure_loaded(lego_ns).
 :- use_module(library(semweb/rdf_db)).
@@ -52,6 +55,9 @@ X directly_provides_input_for Y :- rdf(X,directly_provides_input_for:'',Y).
 X causally_upstream_of Y :- rdf_has(X,causally_upstream_of:'',Y).
 
 X part_of Y :: G :- rdf(X,part_of:'',Y,G).
+
+X type Y :- rdf_has(X,rdf:type,Y).
+
 
 :- rdf_meta svf(r,r,r).
 svf(X,P,Y) :- rdf(X,rdf:type,N),rdf(N,owl:onProperty,P),rdf(N,owl:someValuesFrom,Y).
