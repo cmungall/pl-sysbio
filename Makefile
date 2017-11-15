@@ -58,3 +58,16 @@ target/%-pack.owl: target/%.owl target/%-importmod.owl
 
 prolog/sysbio/go.pl:
 	../rdfs2pl/bin/rdfs2pl go $(HOME)/repos/go/ontology/subsets/goslim_generic.owl > $@
+
+
+## RHEA
+
+target/rhea-lego.owl: target/rhea-biopax_lite.owl
+	./bin/biopax2lego $< -o $@
+
+target/rhea-biopax_lite.owl: target/rhea-biopax_lite.owl.gz
+	gzip -d $< && touch $@
+
+target/rhea-biopax_lite.owl.gz:
+	wget ftp://ftp.ebi.ac.uk/pub/databases/rhea/biopax/rhea-biopax_lite.owl.gz -O $@ && touch $@
+.PRECIOUS: target/rhea-biopax_lite.owl.gz
